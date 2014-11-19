@@ -15,5 +15,14 @@
         {
             return View();
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public ActionResult Ping()
+        {
+            return new EmptyResult();
+        }
     }
 }

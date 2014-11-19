@@ -23,6 +23,7 @@
         <a href="#" class="btn btn-default" data-bind="attr: { href: '/exams/edit/' + ExamId }">Edit</a>
         <a href="#" class="btn btn-default" data-bind="click: $parent.delete">Delete</a>
         <a href="#" class="btn btn-default" data-bind="click: $parent.invite">Invite</a>
+        <a href="#" class="btn btn-default" data-bind="click: $parent.submissions">Submissions</a>
       </div>
     </div>
     <button class="btn btn-primary btn-lg" data-bind="click: getNext">More</button>
@@ -83,6 +84,11 @@
           $('#myModal').modal('toggle');
         };
 
+        self.submissions = function (exam) {
+          self.current = exam;
+          window.location = '/submissions/index/?examId=' + self.current.ExamId;
+        };
+
         self.getInvitationLink = function (recipients) {
           $.post('/exams/invite', { examId: self.current.ExamId, recipients: recipients, showOnly: true}, function (data) {
             $('#invitationLink').html(data.link).attr('href', data.link);
@@ -94,6 +100,9 @@
           $.post('/exams/invite', { examId: self.current.ExamId, recipients: recipients});
           self.current = null;
         };
+
+        $.getJSON('/exams/me', { offset: 0, limit: 20 }, self.exams);
+        self.offset += 20;
       }
 
       mod.ExamsViewModel = ExamsViewModel;

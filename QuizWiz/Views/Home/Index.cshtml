@@ -11,8 +11,8 @@
 </div>
 <div class="row">
   <div class="col-xs-12">
-    <form role="form">
-      <input type="search" class="form-control" placeholder="Search quiz" data-bind="value: query, valueUpdate: ['input', 'afterkeydown']">
+    <form role="form" onsubmit="javascript: return false;">
+      <input tabindex="1" type="search" class="form-control" placeholder="Search quiz" data-bind="value: query, valueUpdate: ['input', 'afterkeydown']">
     </form>
   </div>
 </div>
@@ -50,17 +50,17 @@
         rateLimit: { method: "notifyWhenChangesStop", timeout: 400 }
       });
       self.delayedQuery.subscribe(function (q) {
-        if (q) {
-          self.searching(true);
-          $.getJSON('/Exams/Search', { q: q }, self.exams)
-            .always(function () {
+        self.searching(true);
+        $.getJSON('/exams/search', { q: q }, self.exams)
+          .always(function () {
             self.searching(false);
           });
-        }
-        else {
-          self.searching(false);
-        }
       }, this);
+
+      $.getJSON('/exams/search', { q: '' }, self.exams)
+          .always(function () {
+            self.searching(false);
+          });
     }
 
     ko.applyBindings(new ExamsViewModel());

@@ -1,0 +1,16 @@
+﻿
+@{
+    ViewBag.Title = "Show";
+}
+
+<h2>Show</h2>
+
+@foreach (QuizWiz.Models.Response r in this.ViewBag.Submission.Responses)
+{
+  <h2>Question</h2>
+  @Html.Raw(r.Question.Text)
+  <p>
+    <b>Answer:</b>
+    <pre>@r.Value</pre>
+  </p>
+}

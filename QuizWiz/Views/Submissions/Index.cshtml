@@ -1,0 +1,10 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Index</h2>
+
+@foreach(QuizWiz.Models.Submission s in this.ViewBag.Submissions){
+  <p>@Html.ActionLink(s.UserId, "Show", new { id = s.SubmissionId })</p>
+}

@@ -1,0 +1,29 @@
+﻿@{
+  ViewBag.Title = "Status";
+}
+
+<h2>Complete</h2>
+
+<p>
+  @if (ViewBag.MissingQuestions.Count > 0)
+  {
+    <text>Missing question:</text>
+    foreach (QuizWiz.Models.Question q in ViewBag.MissingQuestions)
+    {
+      <text>
+        <a href="/exams/take/@ViewBag.ExamId#@q.OrderIndex">@(q.OrderIndex + 1)</a>
+      </text>
+    }
+  }
+  else
+  {
+    <text>Test is completed</text>
+  }
+</p>
+
+@using (Html.BeginForm("Finished", "Exams", FormMethod.Post, new { @class = "form-horizontal", role = "form"}))
+{
+  @Html.AntiForgeryToken()
+  @Html.Hidden("submissionId", this.ViewBag.SubmissionId as int?)
+  <button type="submit" class="btn btn-primary">Finish</button>
+}

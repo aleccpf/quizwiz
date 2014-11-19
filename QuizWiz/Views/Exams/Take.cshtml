@@ -24,7 +24,9 @@ else
 </div>
 
 <div>
-  <button class="btn btn-primary" data-bind="text: action, click: submitQuestion">Submit</button>
+  <button class="btn btn-primary" data-bind="click: prevQuestion, visible: hasPrev">previous</button>
+  <button class="btn btn-primary" data-bind="click: submitQuestion, visible: hasNext">next</button>
+  <button class="btn btn-primary" data-bind="click: finish">go to end</button>
 </div>
 
 <script type="text/html" id="question-template">
@@ -50,36 +52,65 @@ else
     $.enableExam = {};
     $.enableExam.question = JSON.parse('@Html.Raw(HttpUtility.JavaScriptStringEncode(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Question)))');
   </script>
+
   <script type="text/javascript">
     function ExamViewModel() {
       var self = this;
-      this.responseId = ko.observable();
-      this.responseText = ko.observable();
-      this.action = ko.observable('Next');
-      this.question = ko.observable($.enableExam.question);
-      this.submissionId = ko.observable($('#SubmissionId').val());
-      this.questionsCount = ko.observable(parseInt($('#QuestionsCount').val(), 10));
-      this.submitQuestion = function () {
+      self.responseId = ko.observable();
+      self.responseText = ko.observable();
+      self.hasNext = ko.observable(true);
+      self.hasPrev = ko.observable(false);
+      self.question = ko.observable($.enableExam.question);
+      self.submissionId = ko.observable($('#SubmissionId').val());
+      self.questionsCount = ko.observable(parseInt($('#QuestionsCount').val(), 10));
+
+      function submit(prev) {
         $.ajax({
           url: '/exams/submitresponse',
           type: 'POST',
           dataType: 'json',
           data: { SubmissionId: self.submissionId, QuestionId: self.question().QuestionId, AnswerId: self.responseId, Value: self.responseText() },
           success: function (data) {
-            if (data.HasNext) {
-              location.hash = data.OrderIndex;
-            }
-            else {
-              location = '/exams/finished';
+            if (!prev) {
+              if (data.HasNext) {
+                location.hash = data.OrderIndex;
+              }
+              else {
+                location = '/exams/status?submissionId=' + self.submissionId();
+              }
+            } else {
+              if (self.question().OrderIndex - 1 >= 0) {
+                location.hash = self.question().OrderIndex - 1;
+              }
+              else {
+                location.hash = 0;
+              }
             }
           },
           error: function (jqXhr, status, msg) {
-            alert("Unexpected error. Contact support.");
+            if (jqXhr.status == 300) {
+              location = '/exams/finished';
+            }
+            else {
+              alert("Unexpected error. Contact support.");
+            }
           }
         });
       };
 
-      this.getQuestion = function (orderIndex, submissionId) {
+      self.prevQuestion = function () {
+        submit(true);
+      };
+
+      self.submitQuestion = function () {
+        submit(false);
+      };
+
+      self.finish = function (submissionId) {
+        location = '/exams/status?submissionId=' + self.submissionId();
+      };
+
+      self.getQuestion = function (orderIndex, submissionId) {
         $.ajax({
           url: '/exams/getquestion',
           type: 'GET',
@@ -88,14 +119,11 @@ else
           success: function (data) {
             if (data.Question) {
               self.question(data.Question);
-              self.responseText(data.Question.Value);
-
-              if (self.question().OrderIndex == self.questionsCount()) {
-                self.action("Finish");
-              }
+              self.responseText(data.Response ? data.Response.Value : "");
+              self.hasPrev(self.question().OrderIndex > 0);
             }
             else {
-              location = '/exams/finished';
+              location = '/exams/status?submissionId=' + self.submissionId();
             }
           },
           error: function (jqXhr) {
@@ -109,13 +137,13 @@ else
         });
       };
 
-      this.clock = ko.observable(new Date());
+      self.clock = ko.observable(new Date());
 
-      this.tick = function () {
+      self.tick = function () {
         self.clock(new Date());
       };
 
-      this.heartbeat = function () {
+      self.heartbeat = function () {
         $.ajax({
           url: '/exams/heartbeat',
           type: 'GET',

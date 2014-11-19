@@ -290,6 +290,59 @@
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="submissionId"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public ActionResult Finished(int submissionId)
+        {
+            using (ExamContext db = this.factory.GetExamContext())
+            {
+                var submission = (from s in db.Submissions
+                                  where s.SubmissionId == submissionId
+                                  select s).FirstOrDefault();
+                submission.Finished = DateTime.UtcNow;
+                db.SaveChanges();
+            }
+
+            return RedirectToAction("Finished");
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public ActionResult Status(int submissionId)
+        {
+            var emptyResponses = new List<Question>();
+
+            using (ExamContext db = this.factory.GetExamContext())
+            {
+                var submission = (from s in db.Submissions.Include("Responses.Question").Include("Exam")
+                                  where s.SubmissionId == submissionId
+                                  select s).FirstOrDefault();
+
+                emptyResponses = (from r in submission.Responses
+                                      where r.Answer == null && string.IsNullOrWhiteSpace(r.Value)
+                                      select r.Question).ToList();
+
+
+                var unanswered = (from q in submission.Exam.Questions
+                                  select q).Except(from r in submission.Responses select r.Question).ToList();
+
+                emptyResponses.AddRange(unanswered.AsEnumerable());
+
+                ViewBag.ExamId = submission.Exam.ExamId;
+            }
+
+            ViewBag.MissingQuestions = emptyResponses;
+            ViewBag.SubmissionId = submissionId;
+            
+            return this.View();
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
         /// <returns></returns>
         [ValidateInput(false)]
         public ActionResult SubmitResponse(int QuestionId, int? AnswerId, int SubmissionId, string value)
@@ -304,7 +357,7 @@
 
                 var question = db.Questions.Find(QuestionId);
 
-                if (submission.Elapsed > TimeSpan.FromMinutes(20))
+                if (submission != null && submission.Elapsed > TimeSpan.FromMinutes(submission.Exam.Duration))
                 {
                     db.SaveChanges();
 
@@ -351,11 +404,6 @@
                                 orderby q.OrderIndex
                                 select q).FirstOrDefault();
 
-                if (question.OrderIndex == (exam.Questions.Count - 1))
-                {
-                    submission.Finished = DateTime.UtcNow;
-                }
-
                 db.SaveChanges();
             }
 
@@ -380,12 +428,14 @@
 
             using (ExamContext db = this.factory.GetExamContext())
             {
-                var submission = (from s in db.Submissions.Include("Exam")
+                var submission = (from s in db.Submissions.Include("Responses.Question").Include("Exam")
                                   where s.SubmissionId == submissionId
                                   select s).FirstOrDefault();
 
                 if (submission != null && submission.Elapsed > TimeSpan.FromMinutes(submission.Exam.Duration))
                 {
+                    db.SaveChanges();
+
                     return new HttpStatusCodeResult(300);
                 }
 
@@ -393,9 +443,14 @@
                             where e.ExamId == submission.Exam.ExamId
                             select e).SingleOrDefault();
 
-                model.Question = (from q in exam.Questions
-                                  where q.OrderIndex == orderIndex
-                                  select q).SingleOrDefault();
+                var question = (from q in exam.Questions
+                                select q).OrderBy(x => x.OrderIndex).Skip(orderIndex).Take(1).SingleOrDefault();
+
+                model.Response = (from r in submission.Responses
+                            where r.Question.QuestionId == question.QuestionId
+                            select r).FirstOrDefault();
+                
+                model.Question = question;
             }
 
             return this.Json(model, JsonRequestBehavior.AllowGet);
@@ -465,9 +520,17 @@
 
             using (var db = this.factory.GetExamContext())
             {
-                exams = (from e in db.Exams
-                         where e.Name.ToLower().Contains(q.ToLower())
-                         select e).Take(20).ToList();
+                if (!string.IsNullOrEmpty(q))
+                {
+                    exams = (from e in db.Exams
+                             where e.Name.ToLower().Contains(q.ToLower())
+                             select e).Take(20).ToList();
+                }
+                else
+                {
+                    exams = (from e in db.Exams
+                             select e).OrderByDescending(x => x.ExamId).Take(20).ToList();
+                }
             }
 
             return this.Json(exams, JsonRequestBehavior.AllowGet);
